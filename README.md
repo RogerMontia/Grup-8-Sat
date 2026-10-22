@@ -1,5 +1,8 @@
 # Grup-8-Sat
 
+https://www.youtube.com/watch?v=b4j67Jj1C08
+
+
 Projecte de comunicació entre un satèl·lit i una estació de terra realitzat amb dos Arduinos.
 
 El satèl·lit mesura la temperatura i la humitat amb un sensor DHT11. Envia les dades a Arduino de terra. Aquest passa a lordinador. Allà, un programa a Python dibuixa la gràfica de la temperatura. Si hi ha cap problema, s'encén un LED d'alarma.
