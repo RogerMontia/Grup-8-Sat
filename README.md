@@ -41,3 +41,5 @@ Cal tenir tancat el monitor sèrie de l'Arduino IDE. Si no, el port està ocupat
 Si el sensor falla o la temperatura passa de 31 ºC durant 5 segons, el satèl·lit envia “ALARMA” al terra.
 Si no rep cap resposta durant 5 segons, s'encén el LED perquè s'ha perdut la comunicació.
 Quan tornen a arribar dades de forma normal, el LED s'apaga.
+
+# Ús donat a la IA
