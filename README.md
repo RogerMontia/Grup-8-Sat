@@ -43,3 +43,9 @@ Si no rep cap resposta durant 5 segons, s'encén el LED perquè s'ha perdut la c
 Quan tornen a arribar dades de forma normal, el LED s'apaga.
 
 # Ús donat a la IA
+
+Per tal de solucionar errors en el codi que els membres del grup no han pogut solucionar s'ha usat la I.A. Les eines que principalment s'han usat han estat Claude i ChatGPT.
+
+Un exemple d'input entregat al chatbot és el següent:
+
+
