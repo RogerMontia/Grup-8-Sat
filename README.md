@@ -1,4 +1,3 @@
-[Uploading README.md…]()
 
 # Grup-8-Sat
 
