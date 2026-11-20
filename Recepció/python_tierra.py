@@ -25,9 +25,9 @@ limite = 30
 medias_superiores = 0  # Para el calculo de las medias de temperatura
 alarma_temperatura_activa = False
 modoRadar = 0  # 1: Rastreo, 0: Orientacion fija
-orientacionRadar = 90  # Angulo seleccionado para la orientacion fija
-radar_angulos = []
-radar_distancias = []
+ultimo_angulo_radar = None
+direccion_radar = 0
+cambios_sentido_radar = 0
 
 
 # FUNCION PARA ACTUALIZAR LOS EJES
@@ -142,8 +142,7 @@ def AplicarTodo():
     global modo_calculo, limite
     global ultimas_temperaturas
     global medias_superiores, alarma_temperatura_activa
-    global modoRadar, orientacionRadar
-    global radar_angulos, radar_distancias
+    global modoRadar
 
     try:
         nuevo_limite = float(entrada_limite.get())
@@ -151,7 +150,7 @@ def AplicarTodo():
         nueva_orientacion = int(entrada_orientacion.get())
         nuevo_periodo_distancia = int(entrada_periodo_distancia.get())
         nuevo_modo = modo_var.get()
-        modo_radar = radar_var.get()
+        modoRadar = radar_var.get()
 
         if nuevo_periodo <= 0 or nuevo_periodo_distancia <= 0:
             messagebox.showerror("Error", "Los periodos deben ser mayores que cero.")
@@ -162,18 +161,6 @@ def AplicarTodo():
             return
 
         limite = nuevo_limite
-
-        # Guardar el modo y la orientacion que usara el radar
-        if modo_radar != modoRadar or nueva_orientacion != orientacionRadar:
-            radar_angulos = []
-            radar_distancias = []
-            linea_traza_radar.set_data([], [])
-            linea_haz_radar.set_data([], [])
-            punto_radar.set_data([], [])
-            canvas_radar.draw_idle()
-
-        modoRadar = modo_radar
-        orientacionRadar = nueva_orientacion
 
         # Comprobar si cambia el modo de calculo
         if nuevo_modo != modo_calculo:
@@ -186,7 +173,7 @@ def AplicarTodo():
         mySerial.write(("5:" + str(modo_calculo) + "\n").encode())
         mySerial.write(("1:" + str(nuevo_periodo) + "\n").encode())
         mySerial.write(("2:" + str(nueva_orientacion) + "\n").encode())
-        mySerial.write(("7:" + str(modo_radar) + "\n").encode())
+        mySerial.write(("7:" + str(modoRadar) + "\n").encode())
         mySerial.write(("8:" + str(nuevo_periodo_distancia) + "\n").encode())
 
         print("Configuracion aplicada")
@@ -194,7 +181,7 @@ def AplicarTodo():
         print("Modo de calculo:", modo_calculo)
         print("Periodo temperatura:", nuevo_periodo)
         print("Orientacion:", nueva_orientacion)
-        print("Modo radar:", modo_radar)
+        print("Modo radar:", modoRadar)
         print("Periodo distancia:", nuevo_periodo_distancia)
 
     except ValueError:
@@ -205,6 +192,8 @@ def AplicarTodo():
 def ActualizarGrafica():
     global ultimo_latido, alarma_latido
     global ultimas_temperaturas
+    global ultimo_angulo_radar, direccion_radar, cambios_sentido_radar
+    global radar_angulos, radar_distancias
 
     if mySerial.is_open and mySerial.in_waiting > 0:
         linea = mySerial.readline().decode('utf-8').strip()
@@ -246,39 +235,18 @@ def ActualizarGrafica():
                 try:
                     angulo = float(trozos[1])
                     distancia = float(trozos[2])
-
-                    # En orientacion fija usamos el angulo seleccionado
-                    # En rastreo usamos el angulo que envia Arduino
-                    if modoRadar == 0:
-                        angulo = orientacionRadar
-
                     print("Angulo:", angulo, "Distancia:", distancia)
+                    if distancia >= 0:
 
-                    if 0 <= angulo <= 180 and distancia >= 0:
-                        angulo_rad = angulo * 3.14159 / 180
-                        radar_angulos.append(angulo_rad)
+                        radar_angulos.append(angulo * 3.14159 / 180)
                         radar_distancias.append(distancia)
-
-                        # Guardar solamente las ultimas 100 detecciones
-                        if len(radar_angulos) > 100:
-                            radar_angulos.pop(0)
-                            radar_distancias.pop(0)
-
-                        # Linea amarilla que une las detecciones
-                        linea_traza_radar.set_data(
-                            [0] + radar_angulos,
-                            [0] + radar_distancias
-                        )
-
-                        # Linea verde que indica la direccion actual
-                        linea_haz_radar.set_data([0, angulo_rad], [0, distancia])
-
-                        # Punto verde de la ultima deteccion
-                        punto_radar.set_data([angulo_rad], [distancia])
+                        # Traza amarilla que une los puntos detectados
+                        linea_traza_radar.set_data([0] + radar_angulos, [0] + radar_distancias)
+                        # Haz verde hasta la ultima deteccion
+                        linea_haz_radar.set_data([0, radar_angulos[-1]], [0, distancia])
+                        punto_radar.set_data([radar_angulos[-1]], [distancia])
                         canvas_radar.draw_idle()
-                    else:
-                        print("Angulo o distancia fuera de rango:", linea)
-
+            
                 except (ValueError, IndexError):
                     print("Dato de distancia incorrecto:", linea)
 
@@ -302,7 +270,16 @@ def ActualizarGrafica():
                 ultimo_latido = time.time()
                 alarma_latido = False 
 
+            # Reiniciar el radar
+            elif codigo == "6":
+                radar_angulos = []
+                radar_distancias = []
 
+                linea_traza_radar.set_data([], [])
+                linea_haz_radar.set_data([], [])
+                punto_radar.set_data([], [])
+
+                canvas_radar.draw_idle()
             # Alarma del satelite
             elif codigo == "ALARMA":
                 print("ALARMA: Fallo persistente del sensor")
@@ -383,8 +360,8 @@ entrada_orientacion.grid(row=2, column=1)
 # Seleccionar modo del radar
 Label(config_frame, text="Modo del radar:").grid(row=1, column=0, padx=5, pady=5)
 radar_var = IntVar(value=0)
-Radiobutton(config_frame, text="Rastreo automatico",variable=radar_var, value=1).grid(row=1, column=2)
-Radiobutton(config_frame, text="Orientacion fija",variable=radar_var, value=0).grid(row=1, column=1)
+Radiobutton(config_frame, text="Rastreo automatico",variable=radar_var, value=1).grid(row=1, column=1)
+Radiobutton(config_frame, text="Orientacion fija",variable=radar_var, value=0).grid(row=1, column=2)
 
 # Cambiar periodo de distancia
 Label(config_frame, text="Periodo de distancia (segundos):").grid(row=2, column=4, padx=5, pady=5)
@@ -441,14 +418,30 @@ canvas_media.get_tk_widget().grid(row=0, column=1, padx=8, pady=5, sticky=N+S+E+
 # GRAFICA DEL RADAR
 fig_radar = Figure(figsize=(4, 3.5), dpi=100)
 ax_radar = fig_radar.add_subplot(111, projection='polar')
-ax_radar.set_title("Radar", fontsize=12, fontweight="bold", pad=25, loc='center')
-
-# Mantenemos la orientacion del primer codigo:
-# 0 grados a la izquierda, 90 arriba y 180 a la derecha
-ax_radar.set_theta_zero_location('W')
-ax_radar.set_theta_direction(-1)
+ax_radar.set_theta_zero_location('E')   # 0º a la derecha
+ax_radar.set_theta_direction(1)         # Angulos en sentido antihorario
 ax_radar.set_thetamin(0)
 ax_radar.set_thetamax(180)
-ax_radar.set_ylim(0, 100)
-ax_radar.set_rlabel_position(90)
-ax_radar.
+ax_radar.set_thetagrids(range(0, 180, 25))  # 0º, 25º, 50º ... 175º
+ax_radar.set_ylim(0, 200)
+ax_radar.set_rticks([0, 40, 80, 120, 160, 200])
+ax_radar.grid(True)
+
+# Lineas del radar: traza amarilla, haz verde y punto verde
+radar_angulos = []
+radar_distancias = []
+linea_traza_radar, = ax_radar.plot([], [], color='g')
+linea_haz_radar, = ax_radar.plot([], [], color='g')
+punto_radar, = ax_radar.plot([], [], 'go')
+
+# Aprovechar mejor el espacio disponible
+ax_radar.set_position([0.08, 0.08, 0.84, 0.78])
+ax_radar.set_title("Radar", fontsize=13, fontweight="bold")
+
+canvas_radar = FigureCanvasTkAgg(fig_radar, master=frame_graficas)
+canvas_radar.get_tk_widget().grid(row=0, column=2,padx=5, pady=5,sticky="nsew")
+
+
+# Iniciar lectura de mensajes
+window.after(20, ActualizarGrafica)
+window.mainloop()
