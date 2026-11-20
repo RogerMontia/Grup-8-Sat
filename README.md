@@ -1,5 +1,4 @@
-**Grup-8-Sat
-**
+Grup-8-Sat
 Versió 1: https://www.youtube.com/watch?v=b4j67Jj1C08
 
 Versió 2:
@@ -18,15 +17,15 @@ python_tierra.py: Programa de l'ordinador amb les gràfiques, el radar i els bot
 tests/: tests unitaris (entre ells el del sensor de distància).
 Connexions
 
-**Satèl·lit:
-**
+Satèl·lit:
+
 Sensor DHT11 al pin 2
 Servo al pin 3
 HC-SR04: TRIG al pin 4 i ECHO al pin 5
 Pins 10 (RX) i 11 (TX) per comunicar-se amb terra
 
-**Terra:
-**
+Terra:
+
 LED d'alarma al pin 12
 Pins 10 (RX) i 11 (TX) per comunicar-se amb el satèl·lit
 
@@ -64,8 +63,8 @@ Missatge	Significat
 5:	Latido, s'envia cada segon per saber que el satèl·lit segueix funcionant
 ALARMA	El sensor porta 5 segons fallant o passa de 31 ºC
 
-**De Terra a Satèl·lit:
-**
+De Terra a Satèl·lit:
+
 Missatge	Significat
 INICIAR	Comença l'enviament de dades i el radar
 PARAR	Atura l'enviament de dades i el radar
@@ -79,8 +78,8 @@ Mitjana de temperatures
 
 La interfície mostra una gràfica amb la mitjana dels 10 últims valors de temperatura. Per calcular-la s'utilitza una cua circular. L'usuari tria si el càlcul es fa al satèl·lit (reacciona més ràpid, però gasta energia) o a l'ordinador. Si salten tres mitjanes seguides per sobre del límit que posa l'usuari, es mostra una alarma.
 
-**Alarmes
-**
+Alarmes
+
 Si el sensor falla o la temperatura passa de 31 ºC durant 5 segons, el satèl·lit envia "ALARMA" al terra. Si no rep cap resposta durant 5 segons, s'encén el LED perquè s'ha perdut la comunicació. Quan tornen a arribar dades de forma normal, el LED s'apaga. Quan una mesura de distància no és vàlida (el sensor no rep eco), no s'envia a terra.
 
 **Ús donat a la IA
