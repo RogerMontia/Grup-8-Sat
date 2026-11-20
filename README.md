@@ -1,5 +1,5 @@
 
-# Grup-8-Sat
+ Grup-8-Sat
 
 Versió 1: https://www.youtube.com/watch?v=b4j67Jj1C08
 
