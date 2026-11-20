@@ -2,6 +2,7 @@ Grup-8-Sat
 Versió 1: https://www.youtube.com/watch?v=b4j67Jj1C08
 Versió 2:
 Projecte de comunicació entre un satèl·lit i una estació de terra realitzat amb dos Arduinos.
+
 El satèl·lit mesura la temperatura i la humitat amb un sensor DHT11 i, a la versió 2, també la distància als objectes propers amb un sensor d'ultrasons HC-SR04 muntat sobre un servo. Envia les dades a l'Arduino de terra. Aquest les passa a l'ordinador. Allà, un programa a Python dibuixa les gràfiques i mostra el radar. Si hi ha cap problema, s'encén un LED d'alarma.
 Versions
 Versió 1: mesura de temperatura i humitat, gràfica a l'ordinador, botons per iniciar, parar i reanudar, alarma per fallada del sensor i LED de pèrdua de comunicació.
@@ -123,5 +124,6 @@ Si el sensor falla o la temperatura passa de 31 ºC durant 5 segons, el satèl·
 Ús donat a la IA
 Per tal de solucionar errors en el codi que els membres del grup no han pogut solucionar s'ha usat la I.A. Les eines que principalment s'han usat han estat Claude i ChatGPT.
 Un exemple d'input entregat al chatbot és el següent:
+
 
 
