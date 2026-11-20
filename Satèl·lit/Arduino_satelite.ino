@@ -1,97 +1,97 @@
+
 #include <DHT.h>
 #include <SoftwareSerial.h>
 #include <Servo.h>
-
+ 
 #define DHTPIN 2
 #define DHTTYPE DHT11
-#define TRIG 4
+#define TRIG 4   // ultrasonidos
 #define ECHO 5
 #define PIN_SERVO 3
-
+ 
 DHT dht(DHTPIN, DHTTYPE);
-SoftwareSerial tierra(10, 11);
+SoftwareSerial tierra(10, 11);   // comunicacion con la estacion de tierra
 Servo servo;
-
-int periodoTH = 3;
-int periodoDistancia = 3;
+ 
+int periodoTH = 3;          // en segundos
+int periodoDistancia = 3;   // en segundos, solo en modo fijo
 int orientacion = 90;
-
+ 
 bool enviandoDatos = false;
 bool radarActivo = false;
 bool falloDetectado = false;
 bool alarmaEnviada = false;
-bool modoRastreo = false;
-bool calcularMediaSat = false;
-
+bool modoRastreo = false;      // false = fijo, true = barrido
+bool calcularMediaSat = false; // si es true la media la hace el arduino
+ 
 unsigned long proximaLectura = 0;
 unsigned long momentoAlarma = 0;
 unsigned long ultimoLatido = 0;
 unsigned long proximaMedicionRadar = 0;
 unsigned long proximoMovimientoServo = 0;
-
-const unsigned long intervaloMovimientoServo = 10;
-const unsigned long intervaloMedicionRastreo = 500;
+ 
+const unsigned long intervaloMovimientoServo = 10;   // ms entre pasos del barrido
+const unsigned long intervaloMedicionRastreo = 500;  // ms entre medidas en barrido
 int ultimoAnguloOrdenado = -1;
-
+ 
 float sumaTemperaturas = 0;
 int numeroTemperaturas = 0;
-
+ 
 int anguloRadar = 90;
-int direccionRadar = 1;
-
+int direccionRadar = 1;   // 1 sube, -1 baja
+ 
 String comando = "";
-
+ 
 void setup() {
     Serial.begin(9600);
     tierra.begin(9600);
     dht.begin();
-
-    // Arranque siempre en modo fijo y a 90 grados
+ 
+    // empieza en fijo mirando a 90
     orientacion = 90;
     anguloRadar = 90;
     modoRastreo = false;
     radarActivo = false;
-
-    // Conectar el servo y llevarlo a su posicion inicial
+ 
     servo.attach(PIN_SERVO);
     servo.write(90);
     ultimoAnguloOrdenado = 90;
-    delay(700);
-
+    delay(700);   // le damos tiempo a llegar
+ 
     pinMode(TRIG, OUTPUT);
     pinMode(ECHO, INPUT);
     digitalWrite(TRIG, LOW);
-
+ 
     anguloRadar = orientacion;
     proximaLectura = millis();
     proximaMedicionRadar = millis();
-
+ 
     Serial.println("Arduino satelite iniciado");
 }
-
+ 
 void loop() {
-    // Recibir comandos desde tierra
     RecibirComandos();
-
-    // Enviar latido cada segundo
+ 
+    // latido para que tierra sepa que seguimos vivos
     if (millis() - ultimoLatido >= 1000) {
         ultimoLatido = millis();
         tierra.println("5:");
     }
-
+ 
+    // lectura del DHT cada periodoTH segundos
     if (enviandoDatos &&
         (long)(millis() - proximaLectura) >= 0) {
         proximaLectura = millis() + periodoTH * 1000UL;
-
+ 
         float h = dht.readHumidity();
         float t = dht.readTemperature();
-
-        // Comprobar errores del sensor
+ 
+        // lectura mala o temperatura demasiado alta
         if (isnan(h) || isnan(t) || t > 31) {
             if (!falloDetectado) {
                 falloDetectado = true;
                 alarmaEnviada = false;
-                momentoAlarma = millis() + 5000;
+                momentoAlarma = millis() + 5000;   // si sigue mal en 5 s salta la alarma
                 tierra.println("3:");
                 Serial.println("Error en el sensor");
             }
@@ -99,14 +99,13 @@ void loop() {
         else {
             falloDetectado = false;
             alarmaEnviada = false;
-
-            // Enviar temperatura y humedad
+ 
+            // formato 1:temp:hum
             tierra.print("1:");
             tierra.print(t);
             tierra.print(":");
             tierra.println(h);
-
-            // Calcular y enviar la media
+ 
             if (calcularMediaSat) {
                 sumaTemperaturas += t;
                 numeroTemperaturas++;
@@ -116,21 +115,22 @@ void loop() {
             }
         }
     }
-
+ 
     if (falloDetectado && !alarmaEnviada &&
         (long)(millis() - momentoAlarma) >= 0) {
         tierra.println("ALARMA");
         alarmaEnviada = true;
         Serial.println("ALARMA activada");
     }
-
+ 
     ActualizarRadar();
 }
-
+ 
+// va juntando caracteres hasta que llega un salto de linea
 void RecibirComandos() {
     while (tierra.available() > 0) {
         char caracter = tierra.read();
-
+ 
         if (caracter == '\n') {
             comando.trim();
             if (comando.length() > 0) {
@@ -143,16 +143,16 @@ void RecibirComandos() {
         }
     }
 }
-
+ 
 void ProcesarComando(String mensaje) {
     mensaje.trim();
-
+ 
     if (mensaje == "INICIAR") {
         enviandoDatos = true;
         radarActivo = true;
         proximaLectura = millis();
         proximaMedicionRadar = millis();
-
+ 
         if (modoRastreo) {
             if (!servo.attached()) {
                 servo.attach(PIN_SERVO);
@@ -176,7 +176,7 @@ void ProcesarComando(String mensaje) {
         radarActivo = true;
         proximaLectura = millis();
         proximaMedicionRadar = millis();
-
+ 
         if (modoRastreo) {
             if (!servo.attached()) {
                 servo.attach(PIN_SERVO);
@@ -191,16 +191,17 @@ void ProcesarComando(String mensaje) {
         Serial.println("Envio y radar reanudados");
     }
     else {
+        // comandos tipo codigo:valor
         int separador = mensaje.indexOf(':');
         if (separador == -1) {
             return;
         }
-
+ 
         int codigo = mensaje.substring(0, separador).toInt();
         String dato = mensaje.substring(separador + 1);
         dato.trim();
-
-        // 1: Periodo de temperatura y humedad
+ 
+        // 1 -> periodo del DHT
         if (codigo == 1) {
             int nuevoPeriodo = dato.toInt();
             if (nuevoPeriodo > 0) {
@@ -210,19 +211,19 @@ void ProcesarComando(String mensaje) {
                 Serial.println(periodoTH);
             }
         }
-        // 2: Orientacion fija del servo
+        // 2 -> angulo en modo fijo
         else if (codigo == 2) {
             int nuevoAngulo = dato.toInt();
             if (nuevoAngulo >= 0 && nuevoAngulo <= 180) {
                 orientacion = nuevoAngulo;
-                if (!modoRastreo) {
+                if (!modoRastreo) {   // en barrido solo se guarda para luego
                     MoverServoFijo(orientacion);
                 }
                 Serial.print("Nueva orientacion: ");
                 Serial.println(orientacion);
             }
         }
-        // 5: Modo de calculo de la media
+        // 5 -> quien calcula la media (0 tierra, 1 satelite)
         else if (codigo == 5) {
             int nuevoModo = dato.toInt();
             if (nuevoModo == 0 || nuevoModo == 1) {
@@ -233,10 +234,10 @@ void ProcesarComando(String mensaje) {
                 Serial.println(nuevoModo);
             }
         }
-        // 7: Modo del radar
+        // 7 -> modo del radar (0 fijo, 1 barrido)
         else if (codigo == 7) {
             int nuevoModo = dato.toInt();
-
+ 
             if (nuevoModo == 0) {
                 modoRastreo = false;
                 MoverServoFijo(orientacion);
@@ -244,7 +245,7 @@ void ProcesarComando(String mensaje) {
             }
             else if (nuevoModo == 1) {
                 modoRastreo = true;
-                anguloRadar = 0;
+                anguloRadar = 0;   // el barrido empieza desde 0
                 direccionRadar = 1;
                 if (!servo.attached()) {
                     servo.attach(PIN_SERVO);
@@ -257,7 +258,7 @@ void ProcesarComando(String mensaje) {
             }
             proximaMedicionRadar = millis();
         }
-        // 8: Periodo de medicion del radar
+        // 8 -> periodo de medida del radar
         else if (codigo == 8) {
             int nuevoPeriodo = dato.toInt();
             if (nuevoPeriodo > 0) {
@@ -269,40 +270,38 @@ void ProcesarComando(String mensaje) {
         }
     }
 }
-
+ 
 void MoverServoFijo(int angulo) {
     angulo = constrain(angulo, 0, 180);
-
-    // Conectar el servo si fuera necesario
+ 
     if (!servo.attached()) {
         servo.attach(PIN_SERVO);
     }
-
-    // Guardar la orientacion solicitada
+ 
     orientacion = angulo;
     anguloRadar = angulo;
-
-    // No repetir la misma orden: evita correcciones innecesarias
+ 
+    // si ya esta ahi no le mandamos nada, asi no tiembla
     if (angulo != ultimoAnguloOrdenado) {
         servo.write(angulo);
         ultimoAnguloOrdenado = angulo;
     }
 }
-
+ 
 void ActualizarRadar() {
-    // Si el radar esta parado, no mover el servo ni medir distancia
     if (!radarActivo) {
         return;
     }
-
+ 
+    // en barrido movemos 2 grados cada paso y rebotamos en los extremos
     if (modoRastreo) {
         if (!servo.attached()) {
             servo.attach(PIN_SERVO);
         }
-
+ 
         if ((long)(millis() - proximoMovimientoServo) >= 0) {
             anguloRadar += direccionRadar * 2;
-
+ 
             if (anguloRadar >= 180) {
                 anguloRadar = 180;
                 direccionRadar = -1;
@@ -311,22 +310,21 @@ void ActualizarRadar() {
                 anguloRadar = 0;
                 direccionRadar = 1;
             }
-
+ 
             servo.write(anguloRadar);
             ultimoAnguloOrdenado = anguloRadar;
             proximoMovimientoServo =
                 millis() + intervaloMovimientoServo;
         }
     }
-
+ 
+    // todavia no toca medir
     if ((long)(millis() - proximaMedicionRadar) < 0) {
         return;
     }
-
+ 
     float distancia = MedirDistancia();
-
-    // En rastreo medir cada 500 ms.
-    // En modo fijo conservar el periodo configurado (en segundos).
+ 
     if (modoRastreo) {
         proximaMedicionRadar =
             millis() + intervaloMedicionRastreo;
@@ -335,8 +333,8 @@ void ActualizarRadar() {
         proximaMedicionRadar =
             millis() + periodoDistancia * 1000UL;
     }
-
-    // No enviar medidas invalidas: evita que Python reciba -1
+ 
+    // si sale -1 no lo enviamos, que en python da problemas
     if (distancia > 0) {
         tierra.print("2:");
         tierra.print(anguloRadar);
@@ -347,22 +345,22 @@ void ActualizarRadar() {
         Serial.println("Medicion de distancia no valida; no se envia");
     }
 }
-
+ 
 float MedirDistancia() {
+    // pulso de 10 us para disparar el HC-SR04
     digitalWrite(TRIG, LOW);
     delayMicroseconds(2);
     digitalWrite(TRIG, HIGH);
     delayMicroseconds(10);
     digitalWrite(TRIG, LOW);
-
-    unsigned long duracion = pulseIn(ECHO, HIGH, 25000);
-
-    // Si no se recibe respuesta
-    if (duracion == 0) {
+ 
+    unsigned long duracion = pulseIn(ECHO, HIGH, 25000);   // timeout de 25 ms, unos 4 m
+ 
+    if (duracion == 0) {   // no ha vuelto el eco
         return -1;
     }
-
-    // Calcular distancia en centimetros
+ 
+    // velocidad del sonido 0.0343 cm/us, entre 2 por ida y vuelta
     float distancia = duracion * 0.0343 / 2;
     return distancia;
 }
