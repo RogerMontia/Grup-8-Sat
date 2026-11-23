@@ -3,7 +3,7 @@
 
 Versió 1: https://www.youtube.com/watch?v=b4j67Jj1C08
 
-Versió 2:
+Versió 2: https://www.youtube.com/watch?v=dPbrPl-H-1Q
 
 Projecte de comunicació entre un satèl·lit i una estació de terra realitzat amb dos Arduinos.
 
